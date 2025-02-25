@@ -1,10 +1,11 @@
 {
   "id": "resize-card-plugin",
   "name": "Resize Card Plugin",
-  "version": "0.1.0",
-  "minAppVersion": "0.12.0",
-  "description": "A plugin to resize canvas cards using a hotkey.",
-  "author": "Your Name",
-  "authorUrl": "https://yourwebsite.com",
-  "main": "main.js"
+  "version": "1.0.0",
+  "author": "jaspery",
+  "authorUrl": "https://github.com/jasperyzh/obsidian-resize-card-plugin",
+  "description": "A plugin to resize canvas cards in Obsidian.",
+  "isDesktopOnly": false,
+  "js": "main.js",
+  "entry": "main.ts"
 }
