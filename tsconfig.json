@@ -8,7 +8,7 @@
     "esModuleInterop": true,
     "moduleResolution": "node"
   },
-  "include": ["*.ts", "obsidian.d.ts"],
+  "include": ["*.ts", "obsidian.d.ts", "src/main.ts"],
   "exclude": ["node_modules"]
 }
 
