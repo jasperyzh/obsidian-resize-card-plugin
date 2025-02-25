@@ -2,12 +2,11 @@
   "name": "resize-card-plugins",
   "version": "1.0.0",
   "description": "",
-  "main": "main.js",
+  "main": "src/main.js",
   "type": "module",
   "scripts": {
-    "dev": "tsc --watch",
-    "build": "node build.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "node src/build.js",
+    "dev": "node src/build.js --watch"
   },
   "keywords": [],
   "author": "",

@@ -7,5 +7,5 @@
   "description": "A plugin to resize canvas cards in Obsidian.",
   "isDesktopOnly": false,
   "js": "main.js",
-  "entry": "main.ts"
+  "entry": "src/main.ts"
 }

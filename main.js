@@ -1,2 +1,250 @@
-"use strict";(()=>{var N=Object.defineProperty,b=Object.defineProperties;var R=Object.getOwnPropertyDescriptors;var v=Object.getOwnPropertySymbols;var $=Object.prototype.hasOwnProperty,I=Object.prototype.propertyIsEnumerable;var C=(a,i,e)=>i in a?N(a,i,{enumerable:!0,configurable:!0,writable:!0,value:e}):a[i]=e,S=(a,i)=>{for(var e in i||(i={}))$.call(i,e)&&C(a,e,i[e]);if(v)for(var e of v(i))I.call(i,e)&&C(a,e,i[e]);return a},m=(a,i)=>b(a,R(i));var D=(a=>typeof require!="undefined"?require:typeof Proxy!="undefined"?new Proxy(a,{get:(i,e)=>(typeof require!="undefined"?require:i)[e]}):a)(function(a){if(typeof require!="undefined")return require.apply(this,arguments);throw Error('Dynamic require of "'+a+'" is not supported')});var p=(a,i,e)=>new Promise((s,t)=>{var d=o=>{try{h(e.next(o))}catch(u){t(u)}},w=o=>{try{h(e.throw(o))}catch(u){t(u)}},h=o=>o.done?s(o.value):Promise.resolve(o.value).then(d,w);h((e=e.apply(a,i)).next())});var n=D("obsidian");var O={cycleSizes:[{width:250,height:240},{width:600,height:800},{width:400,height:400}],fixedSize:{width:600,height:400}},z=class extends n.Plugin{constructor(){super(...arguments);this.cycleIndices=new Map}onload(){return p(this,null,function*(){console.log("Resize Card Plugin loaded"),yield this.loadSettings(),this.addCommand({id:"cycle-resize-card",name:"Cycle Resize Canvas Card",callback:()=>this.cycleResize(),hotkeys:[{modifiers:["Alt","Shift"],key:"R"}]}),this.addCommand({id:"fixed-resize-card",name:"Fixed Resize Canvas Card",callback:()=>this.fixedResize(),hotkeys:[{modifiers:["Alt","Shift"],key:"D"}]}),this.addSettingTab(new x(this.app,this))})}getCanvas(){let e=this.app.workspace.activeLeaf;return!e||!e.view||!("canvas"in e.view)?(new n.Notice("This command works only in a Canvas view."),null):e.view.canvas}getSelectedNodeId(e){var l;let s=(l=e.selection)==null?void 0:l.nodes;if(s&&s.size>0)return Array.from(s)[0];let t=document.querySelector(".canvas-node.is-focused");if(!t)return null;let d=getComputedStyle(t),w=0,h=0,o=d.transform;if(o&&o!=="none"){let g=o.match(/matrix\(([^)]+)\)/);if(g){let y=g[1].split(",").map(f=>parseFloat(f.trim()));w=y[4],h=y[5]}}let u=t.offsetWidth,r=t.offsetHeight,c=null;if(e.nodes instanceof Map)for(let[g,y]of e.nodes.entries()){let f=y.getData();if(Math.abs(f.x-w)<10&&Math.abs(f.y-h)<10&&Math.abs(f.width-u)<10&&Math.abs(f.height-r)<10){c=g;break}}return c}cycleResize(){var f;let e=this.getCanvas();if(!e)return;let s=this.getSelectedNodeId(e);if(!s){new n.Notice("No node selected or matching node found.");return}let t=e.nodes instanceof Map?e.nodes.get(s):e.nodes[s];if(!t){new n.Notice("Selected node not found in canvas model.");return}let d=t.getData(),w=d.width,h=d.height,o=d.x+w/2,u=d.y+h/2,r=(f=this.cycleIndices.get(s))!=null?f:-1;r=(r+1)%this.settings.cycleSizes.length,this.cycleIndices.set(s,r);let{width:c,height:l}=this.settings.cycleSizes[r],g=o-c/2,y=u-l/2;t.setData(m(S({},d),{x:g,y,width:c,height:l})),e.requestSave(),e.requestUpdateFileOpen(),new n.Notice(`Resized node to ${c} x ${l}`),console.log(`Cycle resized node ${s}: new position (${g}, ${y}), size ${c} x ${l}`)}fixedResize(){let e=this.getCanvas();if(!e)return;let s=this.getSelectedNodeId(e);if(!s){new n.Notice("No node selected or matching node found.");return}let t=e.nodes instanceof Map?e.nodes.get(s):e.nodes[s];if(!t){new n.Notice("Selected node not found in canvas model.");return}let d=t.getData(),w=d.width,h=d.height,o=d.x+w/2,u=d.y+h/2,r=this.settings.fixedSize.width,c=this.settings.fixedSize.height,l=o-r/2,g=u-c/2;t.setData(m(S({},d),{x:l,y:g,width:r,height:c})),e.requestSave(),e.requestUpdateFileOpen(),new n.Notice(`Resized node to ${r} x ${c}`),console.log(`Fixed resized node ${s}: new position (${l}, ${g}), size ${r} x ${c}`)}onunload(){return p(this,null,function*(){console.log("Resize Card Plugin unloaded"),yield this.saveSettings()})}loadSettings(){return p(this,null,function*(){this.settings=Object.assign({},O,yield this.loadData())})}saveSettings(){return p(this,null,function*(){yield this.saveData(this.settings)})}},x=class extends n.PluginSettingTab{constructor(i,e){super(i,e),this.plugin=e}display(){let{containerEl:i}=this;i.empty(),i.createEl("h2",{text:"Resize Card Plugin Settings"}),new n.Setting(i).setName("Cycle Sizes").setDesc(`Preset sizes (width x height) to cycle through. Enter as a JSON array, e.g.,
-[ {"width":250, "height":240}, {"width":600, "height":800}, {"width":400, "height":400} ]`).addTextArea(e=>e.setValue(JSON.stringify(this.plugin.settings.cycleSizes,null,2)).onChange(s=>p(this,null,function*(){try{let t=JSON.parse(s);Array.isArray(t)&&t.every(d=>typeof d.width=="number"&&typeof d.height=="number")?(this.plugin.settings.cycleSizes=t,yield this.plugin.saveSettings(),new n.Notice("Cycle sizes updated.")):new n.Notice("Invalid format for cycle sizes.")}catch(t){new n.Notice("Error parsing JSON: "+t)}}))),new n.Setting(i).setName("Fixed Size").setDesc('Fixed size for the fixed resize command. Enter as JSON, e.g., {"width":600, "height":400}').addText(e=>e.setValue(JSON.stringify(this.plugin.settings.fixedSize)).onChange(s=>p(this,null,function*(){try{let t=JSON.parse(s);typeof t.width=="number"&&typeof t.height=="number"?(this.plugin.settings.fixedSize=t,yield this.plugin.saveSettings(),new n.Notice("Fixed size updated.")):new n.Notice("Invalid format for fixed size.")}catch(t){new n.Notice("Error parsing JSON: "+t)}})))}};})();
+"use strict";
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+// src/main.ts
+var main_exports = {};
+__export(main_exports, {
+  default: () => ResizeCardPlugin
+});
+module.exports = __toCommonJS(main_exports);
+var import_obsidian = require("obsidian");
+var DEFAULT_SETTINGS = {
+  cycleSizes: [
+    { width: 250, height: 240 },
+    { width: 600, height: 800 },
+    { width: 400, height: 400 }
+  ],
+  fixedSize: { width: 600, height: 400 }
+};
+var ResizeCardPlugin = class extends import_obsidian.Plugin {
+  constructor() {
+    super(...arguments);
+    // Map to store per-node cycle index
+    this.cycleIndices = /* @__PURE__ */ new Map();
+  }
+  static {
+    __name(this, "ResizeCardPlugin");
+  }
+  async onload() {
+    console.log("Resize Card Plugin loaded");
+    await this.loadSettings();
+    this.addCommand({
+      id: "cycle-resize-card",
+      name: "Cycle Resize Canvas Card",
+      callback: /* @__PURE__ */ __name(() => this.cycleResize(), "callback"),
+      hotkeys: [
+        {
+          modifiers: ["Alt", "Shift"],
+          key: "R"
+        }
+      ]
+    });
+    this.addCommand({
+      id: "fixed-resize-card",
+      name: "Fixed Resize Canvas Card",
+      callback: /* @__PURE__ */ __name(() => this.fixedResize(), "callback"),
+      hotkeys: [
+        {
+          modifiers: ["Alt", "Shift"],
+          key: "D"
+        }
+      ]
+    });
+    this.addSettingTab(new ResizeCardSettingTab(this.app, this));
+  }
+  /**
+   * Returns the canvas object from the active view.
+   */
+  getCanvas() {
+    const activeLeaf = this.app.workspace.activeLeaf;
+    if (!activeLeaf || !activeLeaf.view || !("canvas" in activeLeaf.view)) {
+      new import_obsidian.Notice("This command works only in a Canvas view.");
+      return null;
+    }
+    return activeLeaf.view.canvas;
+  }
+  /**
+   * Returns the selected node ID either from the canvas API or via fallback matching.
+   */
+  getSelectedNodeId(canvas) {
+    let selectedNodes = canvas.selection?.nodes;
+    if (selectedNodes && selectedNodes.size > 0) {
+      return Array.from(selectedNodes)[0];
+    }
+    const domNode = document.querySelector(".canvas-node.is-focused");
+    if (!domNode) return null;
+    const style = getComputedStyle(domNode);
+    let tx = 0, ty = 0;
+    const transform = style.transform;
+    if (transform && transform !== "none") {
+      const matrixValues = transform.match(/matrix\(([^)]+)\)/);
+      if (matrixValues) {
+        const values = matrixValues[1].split(",").map((v) => parseFloat(v.trim()));
+        tx = values[4];
+        ty = values[5];
+      }
+    }
+    const domWidth = domNode.offsetWidth;
+    const domHeight = domNode.offsetHeight;
+    let foundNodeId = null;
+    if (canvas.nodes instanceof Map) {
+      for (const [key, candidate] of canvas.nodes.entries()) {
+        const data = candidate.getData();
+        if (Math.abs(data.x - tx) < 10 && Math.abs(data.y - ty) < 10 && Math.abs(data.width - domWidth) < 10 && Math.abs(data.height - domHeight) < 10) {
+          foundNodeId = key;
+          break;
+        }
+      }
+    }
+    return foundNodeId;
+  }
+  /**
+   * Cycles through preset sizes from settings.
+   */
+  cycleResize() {
+    const canvas = this.getCanvas();
+    if (!canvas) return;
+    let nodeId = this.getSelectedNodeId(canvas);
+    if (!nodeId) {
+      new import_obsidian.Notice("No node selected or matching node found.");
+      return;
+    }
+    const node = canvas.nodes instanceof Map ? canvas.nodes.get(nodeId) : canvas.nodes[nodeId];
+    if (!node) {
+      new import_obsidian.Notice("Selected node not found in canvas model.");
+      return;
+    }
+    const data = node.getData();
+    const oldWidth = data.width;
+    const oldHeight = data.height;
+    const centerX = data.x + oldWidth / 2;
+    const centerY = data.y + oldHeight / 2;
+    let currentIndex = this.cycleIndices.get(nodeId) ?? -1;
+    currentIndex = (currentIndex + 1) % this.settings.cycleSizes.length;
+    this.cycleIndices.set(nodeId, currentIndex);
+    const { width: newWidth, height: newHeight } = this.settings.cycleSizes[currentIndex];
+    const newX = centerX - newWidth / 2;
+    const newY = centerY - newHeight / 2;
+    node.setData({
+      ...data,
+      x: newX,
+      y: newY,
+      width: newWidth,
+      height: newHeight
+    });
+    canvas.requestSave();
+    canvas.requestUpdateFileOpen();
+    new import_obsidian.Notice(`Resized node to ${newWidth} x ${newHeight}`);
+    console.log(`Cycle resized node ${nodeId}: new position (${newX}, ${newY}), size ${newWidth} x ${newHeight}`);
+  }
+  /**
+   * Sets the node to a fixed size from settings.
+   */
+  fixedResize() {
+    const canvas = this.getCanvas();
+    if (!canvas) return;
+    let nodeId = this.getSelectedNodeId(canvas);
+    if (!nodeId) {
+      new import_obsidian.Notice("No node selected or matching node found.");
+      return;
+    }
+    const node = canvas.nodes instanceof Map ? canvas.nodes.get(nodeId) : canvas.nodes[nodeId];
+    if (!node) {
+      new import_obsidian.Notice("Selected node not found in canvas model.");
+      return;
+    }
+    const data = node.getData();
+    const oldWidth = data.width;
+    const oldHeight = data.height;
+    const centerX = data.x + oldWidth / 2;
+    const centerY = data.y + oldHeight / 2;
+    const newWidth = this.settings.fixedSize.width;
+    const newHeight = this.settings.fixedSize.height;
+    const newX = centerX - newWidth / 2;
+    const newY = centerY - newHeight / 2;
+    node.setData({
+      ...data,
+      x: newX,
+      y: newY,
+      width: newWidth,
+      height: newHeight
+    });
+    canvas.requestSave();
+    canvas.requestUpdateFileOpen();
+    new import_obsidian.Notice(`Resized node to ${newWidth} x ${newHeight}`);
+    console.log(`Fixed resized node ${nodeId}: new position (${newX}, ${newY}), size ${newWidth} x ${newHeight}`);
+  }
+  async onunload() {
+    console.log("Resize Card Plugin unloaded");
+    await this.saveSettings();
+  }
+  async loadSettings() {
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+  }
+  async saveSettings() {
+    await this.saveData(this.settings);
+  }
+};
+var ResizeCardSettingTab = class extends import_obsidian.PluginSettingTab {
+  static {
+    __name(this, "ResizeCardSettingTab");
+  }
+  constructor(app, plugin) {
+    super(app, plugin);
+    this.plugin = plugin;
+  }
+  display() {
+    const { containerEl } = this;
+    containerEl.empty();
+    containerEl.createEl("h2", { text: "Resize Card Plugin Settings" });
+    new import_obsidian.Setting(containerEl).setName("Cycle Sizes").setDesc('Preset sizes (width x height) to cycle through. Enter as a JSON array, e.g.,\n[ {"width":250, "height":240}, {"width":600, "height":800}, {"width":400, "height":400} ]').addTextArea(
+      (text) => text.setValue(JSON.stringify(this.plugin.settings.cycleSizes, null, 2)).onChange(async (value) => {
+        try {
+          const parsed = JSON.parse(value);
+          if (Array.isArray(parsed) && parsed.every((item) => typeof item.width === "number" && typeof item.height === "number")) {
+            this.plugin.settings.cycleSizes = parsed;
+            await this.plugin.saveSettings();
+            new import_obsidian.Notice("Cycle sizes updated.");
+          } else {
+            new import_obsidian.Notice("Invalid format for cycle sizes.");
+          }
+        } catch (err) {
+          new import_obsidian.Notice("Error parsing JSON: " + err);
+        }
+      })
+    );
+    new import_obsidian.Setting(containerEl).setName("Fixed Size").setDesc('Fixed size for the fixed resize command. Enter as JSON, e.g., {"width":600, "height":400}').addText(
+      (text) => text.setValue(JSON.stringify(this.plugin.settings.fixedSize)).onChange(async (value) => {
+        try {
+          const parsed = JSON.parse(value);
+          if (typeof parsed.width === "number" && typeof parsed.height === "number") {
+            this.plugin.settings.fixedSize = parsed;
+            await this.plugin.saveSettings();
+            new import_obsidian.Notice("Fixed size updated.");
+          } else {
+            new import_obsidian.Notice("Invalid format for fixed size.");
+          }
+        } catch (err) {
+          new import_obsidian.Notice("Error parsing JSON: " + err);
+        }
+      })
+    );
+  }
+};
