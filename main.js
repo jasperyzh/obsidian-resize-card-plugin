@@ -25,6 +25,45 @@ __export(main_exports, {
 });
 module.exports = __toCommonJS(main_exports);
 var import_obsidian = require("obsidian");
+
+// src/grid-arrange.js
+function gridArrange(canvas, nodeIds, fixedSize, gap = 20) {
+  if (!nodeIds || nodeIds.length === 0) return;
+  let minX = Infinity, minY = Infinity;
+  nodeIds.forEach((nodeId) => {
+    const node = canvas.nodes instanceof Map ? canvas.nodes.get(nodeId) : canvas.nodes[nodeId];
+    if (node) {
+      const data = node.getData();
+      if (data.x < minX) minX = data.x;
+      if (data.y < minY) minY = data.y;
+    }
+  });
+  if (minX === Infinity) minX = 0;
+  if (minY === Infinity) minY = 0;
+  const count = nodeIds.length;
+  const columns = Math.ceil(Math.sqrt(count));
+  nodeIds.forEach((nodeId, index) => {
+    const node = canvas.nodes instanceof Map ? canvas.nodes.get(nodeId) : canvas.nodes[nodeId];
+    if (!node) return;
+    const row = Math.floor(index / columns);
+    const col = index % columns;
+    const newX = minX + col * (fixedSize.width + gap);
+    const newY = minY + row * (fixedSize.height + gap);
+    const data = node.getData();
+    node.setData({
+      ...data,
+      x: newX,
+      y: newY,
+      width: fixedSize.width,
+      height: fixedSize.height
+    });
+  });
+  canvas.requestSave();
+  canvas.requestUpdateFileOpen();
+}
+__name(gridArrange, "gridArrange");
+
+// src/main.ts
 var DEFAULT_SETTINGS = {
   cycleSizes: [
     { width: 250, height: 240 },
@@ -45,6 +84,27 @@ var ResizeCardPlugin = class extends import_obsidian.Plugin {
   async onload() {
     console.log("Resize Card Plugin loaded");
     await this.loadSettings();
+    this.addCommand({
+      id: "grid-arrange-canvas-card",
+      name: "Grid Arrange Canvas Cards",
+      callback: /* @__PURE__ */ __name(() => {
+        const canvas = this.getCanvas();
+        if (!canvas) return;
+        const nodeIds = this.getSelectedNodeId(canvas);
+        if (nodeIds.length === 0) {
+          new import_obsidian.Notice("No node selected or matching node found.");
+          return;
+        }
+        gridArrange(canvas, nodeIds, this.settings.fixedSize);
+        new import_obsidian.Notice("Arranged nodes in a grid layout.");
+      }, "callback"),
+      hotkeys: [
+        {
+          modifiers: ["Alt", "Shift"],
+          key: "S"
+        }
+      ]
+    });
     this.addCommand({
       id: "cycle-resize-card",
       name: "Cycle Resize Canvas Card",

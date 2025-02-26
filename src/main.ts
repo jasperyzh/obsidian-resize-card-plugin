@@ -1,5 +1,7 @@
 import { Plugin, PluginSettingTab, App, Setting, Notice } from "obsidian";
 
+import { gridArrange } from "./grid-arrange.js";
+
 interface ResizeCardSettings {
   cycleSizes: Array<{ width: number; height: number }>;
   fixedSize: { width: number; height: number };
@@ -22,6 +24,31 @@ export default class ResizeCardPlugin extends Plugin {
   async onload() {
     console.log("Resize Card Plugin loaded");
     await this.loadSettings();
+
+    // Command: Grid arrange with Alt+Shift+G
+    this.addCommand({
+      id: "grid-arrange-canvas-card",
+      name: "Grid Arrange Canvas Cards",
+      callback: () => {
+        const canvas = this.getCanvas();
+
+        if (!canvas) return;
+        const nodeIds = this.getSelectedNodeId(canvas);
+        if (nodeIds.length === 0) {
+          new Notice("No node selected or matching node found.");
+          return;
+        }
+        // Call the grid arrangement function using fixedSize from settings.
+        gridArrange(canvas, nodeIds, this.settings.fixedSize);
+        new Notice("Arranged nodes in a grid layout.");
+      },
+      hotkeys: [
+        {
+          modifiers: ["Alt", "Shift"],
+          key: "S",
+        },
+      ],
+    });
 
     // Command: Cycle preset sizes with Alt+Shift+R
     this.addCommand({
@@ -119,113 +146,116 @@ export default class ResizeCardPlugin extends Plugin {
     return foundNodeId ? [foundNodeId] : [];
   }
 
-/**
- * Cycles through preset sizes from settings for each selected node.
- */
-private cycleResize() {
-	const canvas = this.getCanvas();
-	console.log(canvas);
-	if (!canvas) return;
-  
-	let nodeIds = this.getSelectedNodeId(canvas);
-	console.log("Selected node IDs:", nodeIds);
-	if (nodeIds.length === 0) {
-	  new Notice("No node selected or matching node found.");
-	  return;
-	}
-  
-	// Iterate over all selected node IDs.
-	nodeIds.forEach((nodeId) => {
-	  const node =
-		canvas.nodes instanceof Map ? canvas.nodes.get(nodeId) : canvas.nodes[nodeId];
-	  if (!node) {
-		new Notice(`Selected node ${nodeId} not found in canvas model.`);
-		return;
-	  }
-	  const data = node.getData();
-	  const oldWidth = data.width;
-	  const oldHeight = data.height;
-	  const centerX = data.x + oldWidth / 2;
-	  const centerY = data.y + oldHeight / 2;
-  
-	  // Get current cycle index for this node (default -1)
-	  let currentIndex = this.cycleIndices.get(nodeId) ?? -1;
-	  // Cycle to next index.
-	  currentIndex = (currentIndex + 1) % this.settings.cycleSizes.length;
-	  this.cycleIndices.set(nodeId, currentIndex);
-	  const { width: newWidth, height: newHeight } =
-		this.settings.cycleSizes[currentIndex];
-  
-	  // Compute new position to keep center fixed.
-	  const newX = centerX - newWidth / 2;
-	  const newY = centerY - newHeight / 2;
-  
-	  node.setData({
-		...data,
-		x: newX,
-		y: newY,
-		width: newWidth,
-		height: newHeight,
-	  });
-  
-	  canvas.requestSave();
-	  canvas.requestUpdateFileOpen();
-  
-	  new Notice(`Resized node ${nodeId} to ${newWidth} x ${newHeight}`);
-	  console.log(
-		`Cycle resized node ${nodeId}: new position (${newX}, ${newY}), size ${newWidth} x ${newHeight}`
-	  );
-	});
-  }
-  
+  /**
+   * Cycles through preset sizes from settings for each selected node.
+   */
+  private cycleResize() {
+    const canvas = this.getCanvas();
+    console.log(canvas);
+    if (!canvas) return;
 
-/**
- * Sets each selected node to a fixed size from settings.
- */
-private fixedResize() {
-	const canvas = this.getCanvas();
-	if (!canvas) return;
-  
-	let nodeIds = this.getSelectedNodeId(canvas);
-	if (nodeIds.length === 0) {
-	  new Notice("No node selected or matching node found.");
-	  return;
-	}
-  
-	nodeIds.forEach((nodeId) => {
-	  const node =
-		canvas.nodes instanceof Map ? canvas.nodes.get(nodeId) : canvas.nodes[nodeId];
-	  if (!node) {
-		new Notice(`Selected node ${nodeId} not found in canvas model.`);
-		return;
-	  }
-	  const data = node.getData();
-	  const oldWidth = data.width;
-	  const oldHeight = data.height;
-	  const centerX = data.x + oldWidth / 2;
-	  const centerY = data.y + oldHeight / 2;
-  
-	  const newWidth = this.settings.fixedSize.width;
-	  const newHeight = this.settings.fixedSize.height;
-	  const newX = centerX - newWidth / 2;
-	  const newY = centerY - newHeight / 2;
-  
-	  node.setData({
-		...data,
-		x: newX,
-		y: newY,
-		width: newWidth,
-		height: newHeight,
-	  });
-  
-	  canvas.requestSave();
-	  canvas.requestUpdateFileOpen();
-  
-	  new Notice(`Resized node ${nodeId} to ${newWidth} x ${newHeight}`);
-	  console.log(
-		`Fixed resized node ${nodeId}: new position (${newX}, ${newY}), size ${newWidth} x ${newHeight}`
-	  );
-	});
+    let nodeIds = this.getSelectedNodeId(canvas);
+    console.log("Selected node IDs:", nodeIds);
+    if (nodeIds.length === 0) {
+      new Notice("No node selected or matching node found.");
+      return;
+    }
+
+    // Iterate over all selected node IDs.
+    nodeIds.forEach((nodeId) => {
+      const node =
+        canvas.nodes instanceof Map
+          ? canvas.nodes.get(nodeId)
+          : canvas.nodes[nodeId];
+      if (!node) {
+        new Notice(`Selected node ${nodeId} not found in canvas model.`);
+        return;
+      }
+      const data = node.getData();
+      const oldWidth = data.width;
+      const oldHeight = data.height;
+      const centerX = data.x + oldWidth / 2;
+      const centerY = data.y + oldHeight / 2;
+
+      // Get current cycle index for this node (default -1)
+      let currentIndex = this.cycleIndices.get(nodeId) ?? -1;
+      // Cycle to next index.
+      currentIndex = (currentIndex + 1) % this.settings.cycleSizes.length;
+      this.cycleIndices.set(nodeId, currentIndex);
+      const { width: newWidth, height: newHeight } =
+        this.settings.cycleSizes[currentIndex];
+
+      // Compute new position to keep center fixed.
+      const newX = centerX - newWidth / 2;
+      const newY = centerY - newHeight / 2;
+
+      node.setData({
+        ...data,
+        x: newX,
+        y: newY,
+        width: newWidth,
+        height: newHeight,
+      });
+
+      canvas.requestSave();
+      canvas.requestUpdateFileOpen();
+
+      new Notice(`Resized node ${nodeId} to ${newWidth} x ${newHeight}`);
+      console.log(
+        `Cycle resized node ${nodeId}: new position (${newX}, ${newY}), size ${newWidth} x ${newHeight}`
+      );
+    });
+  }
+
+  /**
+   * Sets each selected node to a fixed size from settings.
+   */
+  private fixedResize() {
+    const canvas = this.getCanvas();
+    if (!canvas) return;
+
+    let nodeIds = this.getSelectedNodeId(canvas);
+    if (nodeIds.length === 0) {
+      new Notice("No node selected or matching node found.");
+      return;
+    }
+
+    nodeIds.forEach((nodeId) => {
+      const node =
+        canvas.nodes instanceof Map
+          ? canvas.nodes.get(nodeId)
+          : canvas.nodes[nodeId];
+      if (!node) {
+        new Notice(`Selected node ${nodeId} not found in canvas model.`);
+        return;
+      }
+      const data = node.getData();
+      const oldWidth = data.width;
+      const oldHeight = data.height;
+      const centerX = data.x + oldWidth / 2;
+      const centerY = data.y + oldHeight / 2;
+
+      const newWidth = this.settings.fixedSize.width;
+      const newHeight = this.settings.fixedSize.height;
+      const newX = centerX - newWidth / 2;
+      const newY = centerY - newHeight / 2;
+
+      node.setData({
+        ...data,
+        x: newX,
+        y: newY,
+        width: newWidth,
+        height: newHeight,
+      });
+
+      canvas.requestSave();
+      canvas.requestUpdateFileOpen();
+
+      new Notice(`Resized node ${nodeId} to ${newWidth} x ${newHeight}`);
+      console.log(
+        `Fixed resized node ${nodeId}: new position (${newX}, ${newY}), size ${newWidth} x ${newHeight}`
+      );
+    });
   }
 
   async onunload() {
