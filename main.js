@@ -84,12 +84,14 @@ var ResizeCardPlugin = class extends import_obsidian.Plugin {
    * Returns the selected node ID either from the canvas API or via fallback matching.
    */
   getSelectedNodeId(canvas) {
-    let selectedNodes = canvas.selection?.nodes;
+    let selectedNodes = canvas.selection instanceof Set ? canvas.selection : canvas.selection?.nodes;
     if (selectedNodes && selectedNodes.size > 0) {
-      return Array.from(selectedNodes)[0];
+      return Array.from(selectedNodes).map(
+        (node) => typeof node === "string" ? node : node.id
+      );
     }
     const domNode = document.querySelector(".canvas-node.is-focused");
-    if (!domNode) return null;
+    if (!domNode) return [];
     const style = getComputedStyle(domNode);
     let tx = 0, ty = 0;
     const transform = style.transform;
@@ -113,83 +115,93 @@ var ResizeCardPlugin = class extends import_obsidian.Plugin {
         }
       }
     }
-    return foundNodeId;
+    return foundNodeId ? [foundNodeId] : [];
   }
   /**
-   * Cycles through preset sizes from settings.
+   * Cycles through preset sizes from settings for each selected node.
    */
   cycleResize() {
     const canvas = this.getCanvas();
+    console.log(canvas);
     if (!canvas) return;
-    let nodeId = this.getSelectedNodeId(canvas);
-    if (!nodeId) {
+    let nodeIds = this.getSelectedNodeId(canvas);
+    console.log("Selected node IDs:", nodeIds);
+    if (nodeIds.length === 0) {
       new import_obsidian.Notice("No node selected or matching node found.");
       return;
     }
-    const node = canvas.nodes instanceof Map ? canvas.nodes.get(nodeId) : canvas.nodes[nodeId];
-    if (!node) {
-      new import_obsidian.Notice("Selected node not found in canvas model.");
-      return;
-    }
-    const data = node.getData();
-    const oldWidth = data.width;
-    const oldHeight = data.height;
-    const centerX = data.x + oldWidth / 2;
-    const centerY = data.y + oldHeight / 2;
-    let currentIndex = this.cycleIndices.get(nodeId) ?? -1;
-    currentIndex = (currentIndex + 1) % this.settings.cycleSizes.length;
-    this.cycleIndices.set(nodeId, currentIndex);
-    const { width: newWidth, height: newHeight } = this.settings.cycleSizes[currentIndex];
-    const newX = centerX - newWidth / 2;
-    const newY = centerY - newHeight / 2;
-    node.setData({
-      ...data,
-      x: newX,
-      y: newY,
-      width: newWidth,
-      height: newHeight
+    nodeIds.forEach((nodeId) => {
+      const node = canvas.nodes instanceof Map ? canvas.nodes.get(nodeId) : canvas.nodes[nodeId];
+      if (!node) {
+        new import_obsidian.Notice(`Selected node ${nodeId} not found in canvas model.`);
+        return;
+      }
+      const data = node.getData();
+      const oldWidth = data.width;
+      const oldHeight = data.height;
+      const centerX = data.x + oldWidth / 2;
+      const centerY = data.y + oldHeight / 2;
+      let currentIndex = this.cycleIndices.get(nodeId) ?? -1;
+      currentIndex = (currentIndex + 1) % this.settings.cycleSizes.length;
+      this.cycleIndices.set(nodeId, currentIndex);
+      const { width: newWidth, height: newHeight } = this.settings.cycleSizes[currentIndex];
+      const newX = centerX - newWidth / 2;
+      const newY = centerY - newHeight / 2;
+      node.setData({
+        ...data,
+        x: newX,
+        y: newY,
+        width: newWidth,
+        height: newHeight
+      });
+      canvas.requestSave();
+      canvas.requestUpdateFileOpen();
+      new import_obsidian.Notice(`Resized node ${nodeId} to ${newWidth} x ${newHeight}`);
+      console.log(
+        `Cycle resized node ${nodeId}: new position (${newX}, ${newY}), size ${newWidth} x ${newHeight}`
+      );
     });
-    canvas.requestSave();
-    canvas.requestUpdateFileOpen();
-    new import_obsidian.Notice(`Resized node to ${newWidth} x ${newHeight}`);
-    console.log(`Cycle resized node ${nodeId}: new position (${newX}, ${newY}), size ${newWidth} x ${newHeight}`);
   }
   /**
-   * Sets the node to a fixed size from settings.
+   * Sets each selected node to a fixed size from settings.
    */
   fixedResize() {
     const canvas = this.getCanvas();
     if (!canvas) return;
-    let nodeId = this.getSelectedNodeId(canvas);
-    if (!nodeId) {
+    let nodeIds = this.getSelectedNodeId(canvas);
+    if (nodeIds.length === 0) {
       new import_obsidian.Notice("No node selected or matching node found.");
       return;
     }
-    const node = canvas.nodes instanceof Map ? canvas.nodes.get(nodeId) : canvas.nodes[nodeId];
-    if (!node) {
-      new import_obsidian.Notice("Selected node not found in canvas model.");
-      return;
-    }
-    const data = node.getData();
-    const oldWidth = data.width;
-    const oldHeight = data.height;
-    const centerX = data.x + oldWidth / 2;
-    const centerY = data.y + oldHeight / 2;
-    const newWidth = this.settings.fixedSize.width;
-    const newHeight = this.settings.fixedSize.height;
-    const newX = centerX - newWidth / 2;
-    const newY = centerY - newHeight / 2;
-    node.setData({
-      ...data,
-      x: newX,
-      y: newY,
-      width: newWidth,
-      height: newHeight
+    nodeIds.forEach((nodeId) => {
+      const node = canvas.nodes instanceof Map ? canvas.nodes.get(nodeId) : canvas.nodes[nodeId];
+      if (!node) {
+        new import_obsidian.Notice(`Selected node ${nodeId} not found in canvas model.`);
+        return;
+      }
+      const data = node.getData();
+      const oldWidth = data.width;
+      const oldHeight = data.height;
+      const centerX = data.x + oldWidth / 2;
+      const centerY = data.y + oldHeight / 2;
+      const newWidth = this.settings.fixedSize.width;
+      const newHeight = this.settings.fixedSize.height;
+      const newX = centerX - newWidth / 2;
+      const newY = centerY - newHeight / 2;
+      node.setData({
+        ...data,
+        x: newX,
+        y: newY,
+        width: newWidth,
+        height: newHeight
+      });
+      canvas.requestSave();
+      canvas.requestUpdateFileOpen();
+      new import_obsidian.Notice(`Resized node ${nodeId} to ${newWidth} x ${newHeight}`);
+      console.log(
+        `Fixed resized node ${nodeId}: new position (${newX}, ${newY}), size ${newWidth} x ${newHeight}`
+      );
     });
-    canvas.requestSave();
-    canvas.requestUpdateFileOpen();
-    new import_obsidian.Notice(`Resized node to ${newWidth} x ${newHeight}`);
-    console.log(`Fixed resized node ${nodeId}: new position (${newX}, ${newY}), size ${newWidth} x ${newHeight}`);
   }
   async onunload() {
     console.log("Resize Card Plugin unloaded");
@@ -214,11 +226,15 @@ var ResizeCardSettingTab = class extends import_obsidian.PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.createEl("h2", { text: "Resize Card Plugin Settings" });
-    new import_obsidian.Setting(containerEl).setName("Cycle Sizes").setDesc('Preset sizes (width x height) to cycle through. Enter as a JSON array, e.g.,\n[ {"width":250, "height":240}, {"width":600, "height":800}, {"width":400, "height":400} ]').addTextArea(
+    new import_obsidian.Setting(containerEl).setName("Cycle Sizes").setDesc(
+      'Preset sizes (width x height) to cycle through. Enter as a JSON array, e.g.,\n[ {"width":250, "height":240}, {"width":600, "height":800}, {"width":400, "height":400} ]'
+    ).addTextArea(
       (text) => text.setValue(JSON.stringify(this.plugin.settings.cycleSizes, null, 2)).onChange(async (value) => {
         try {
           const parsed = JSON.parse(value);
-          if (Array.isArray(parsed) && parsed.every((item) => typeof item.width === "number" && typeof item.height === "number")) {
+          if (Array.isArray(parsed) && parsed.every(
+            (item) => typeof item.width === "number" && typeof item.height === "number"
+          )) {
             this.plugin.settings.cycleSizes = parsed;
             await this.plugin.saveSettings();
             new import_obsidian.Notice("Cycle sizes updated.");
@@ -230,7 +246,9 @@ var ResizeCardSettingTab = class extends import_obsidian.PluginSettingTab {
         }
       })
     );
-    new import_obsidian.Setting(containerEl).setName("Fixed Size").setDesc('Fixed size for the fixed resize command. Enter as JSON, e.g., {"width":600, "height":400}').addText(
+    new import_obsidian.Setting(containerEl).setName("Fixed Size").setDesc(
+      'Fixed size for the fixed resize command. Enter as JSON, e.g., {"width":600, "height":400}'
+    ).addText(
       (text) => text.setValue(JSON.stringify(this.plugin.settings.fixedSize)).onChange(async (value) => {
         try {
           const parsed = JSON.parse(value);
